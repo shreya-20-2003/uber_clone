@@ -1,49 +1,44 @@
 const express = require('express');
-const { body } = require("express-validator");
-const captainController = require('../controllers/captain.controller');
+const router = express.Router();
+const { body, query } = require('express-validator');
+const rideController = require('../controllers/ride.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 
-const router = express.Router();
 
-// Validation middleware for registration
-const validateCaptainRegistration = [
-    body('email').isEmail().withMessage('Invalid Email').trim(),
-    body('fullname.firstname')
-        .isLength({ min: 3 }).withMessage('First name must be at least 3 characters long')
-        .trim(),
-    body('password')
-        .isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
-        .trim(),
-    body('vehicle.color')
-        .isLength({ min: 3 }).withMessage('Color must be at least 3 characters long')
-        .trim(),
-    body('vehicle.plate')
-        .isLength({ min: 3 }).withMessage('Plate must be at least 3 characters long')
-        .trim(),
-    body('vehicle.capacity')
-        .isInt({ min: 1 }).withMessage('Capacity must be at least 1'),
-    body('vehicle.vehicleType')
-        .isIn(['car', 'motorcycle', 'auto']).withMessage('Invalid vehicle type')
-];
+router.post('/create',
+    authMiddleware.authUser,
+    body('pickup').isString().isLength({ min: 3 }).withMessage('Invalid pickup address'),
+    body('destination').isString().isLength({ min: 3 }).withMessage('Invalid destination address'),
+    body('vehicleType').isString().isIn([ 'auto', 'car', 'moto' ]).withMessage('Invalid vehicle type'),
+    rideController.createRide
+)
 
-// Validation middleware for login
-const validateCaptainLogin = [
-    body('email').isEmail().withMessage('Invalid Email').trim(),
-    body('password')
-        .isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
-        .trim()
-];
+router.get('/get-fare',
+    authMiddleware.authUser,
+    query('pickup').isString().isLength({ min: 3 }).withMessage('Invalid pickup address'),
+    query('destination').isString().isLength({ min: 3 }).withMessage('Invalid destination address'),
+    rideController.getFare
+)
 
-// Register a new captain
-router.post('/register', validateCaptainRegistration, captainController.registerCaptain);
+router.post('/confirm',
+    authMiddleware.authCaptain,
+    body('rideId').isMongoId().withMessage('Invalid ride id'),
+    rideController.confirmRide
+)
 
-// Captain login
-router.post('/login', validateCaptainLogin, captainController.loginCaptain);
+router.get('/start-ride',
+    authMiddleware.authCaptain,
+    query('rideId').isMongoId().withMessage('Invalid ride id'),
+    query('otp').isString().isLength({ min: 6, max: 6 }).withMessage('Invalid OTP'),
+    rideController.startRide
+)
 
-// Get captain profile (Protected Route)
-router.get('/profile', authMiddleware.authCaptain, captainController.getCaptainProfile);
+router.post('/end-ride',
+    authMiddleware.authCaptain,
+    body('rideId').isMongoId().withMessage('Invalid ride id'),
+    rideController.endRide
+)
 
-// Logout captain (Changed to POST for better security)
-router.post('/logout', authMiddleware.authCaptain, captainController.logoutCaptain);
+
 
 module.exports = router;
